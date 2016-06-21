@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QFileDialog
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
@@ -67,6 +67,10 @@ class SiImporter:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'SiImporter')
         self.toolbar.setObjectName(u'SiImporter')
+
+        self.dlg.lineEdit.clear()
+        self.dlg.pushButton.clicked.connect(self.select_output_file)
+
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -179,9 +183,23 @@ class SiImporter:
         del self.toolbar
 
 
+
+    def select_output_file(self):
+        filename = QFileDialog.getSaveFileName(self.dlg, "Select output file ","", '*.txt')
+        self.dlg.lineEdit.setText(filename)
+
+
     def run(self):
         """Run method that performs all the real work"""
         # show the dialog
+        layers = self.iface.legendInterface().layers()
+        layer_list = []
+        for layer in layers:
+            layer_list.append(layer.name())
+            self.dlg.comboBox.addItems(layer_list)
+
+
+
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
@@ -189,4 +207,16 @@ class SiImporter:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            pass
+            filename = self.dlg.lineEdit.text()
+            output_file = open(filename, 'w')
+
+            selectedLayerIndex = self.dlg.comboBox.currentIndex()
+            selectedLayer = layers[selectedLayerIndex]
+            fields = selectedLayer.pendingFields()
+            fieldnames = [field.name() for field in fields]
+
+            for f in selectedLayer.getFeatures():
+                line = ','.join(unicode(f[x]) for x in fieldnames) + '\n'
+                unicode_line = line.encode('utf-8')
+                output_file.write(unicode_line)
+            output_file.close()
