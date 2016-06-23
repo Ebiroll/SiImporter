@@ -22,11 +22,14 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon, QFileDialog
+
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from si_importer_dialog import SiImporterDialog
+from qgis.core import QgsPoint , QgsGeometry ,QgsFeature
 import os.path
+import re
 
 
 class SiImporter:
@@ -208,15 +211,112 @@ class SiImporter:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             filename = self.dlg.lineEdit.text()
-            output_file = open(filename, 'w')
+            input_file = open(filename, 'r')
+
+            row = input_file.readlines()
+
+            fillareparse = False
+            polygonareparse = False
+
+            numfilldata = 0
+            coordinatePairs = []
 
             selectedLayerIndex = self.dlg.comboBox.currentIndex()
             selectedLayer = layers[selectedLayerIndex]
-            fields = selectedLayer.pendingFields()
-            fieldnames = [field.name() for field in fields]
 
-            for f in selectedLayer.getFeatures():
-                line = ','.join(unicode(f[x]) for x in fieldnames) + '\n'
-                unicode_line = line.encode('utf-8')
-                output_file.write(unicode_line)
-            output_file.close()
+            for line in row:
+                if (fillareparse or polygonareparse):
+                    #print(row)
+                    info = line.split()
+                    try :
+                        #first=info[0]
+                        for first in info:
+                            #print first
+                            lat, lon = first.strip().split('N') # move inside `try` just in case...
+                            #lat = float( lat )
+                            #lon = float( lon )
+                            _,deg,min,sec,hundr,_ = re.split("([0-9][0-9])([0-9][0-9])([0-9][0-9])([0-9][0-9])",lat)
+                            #print ("lat",deg,min,sec)
+                            _,ldeg,lmin,lsec,lhundr,_ = re.split("([0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])([0-9][0-9])",lon)
+                            #print ("lon",ldeg,lmin,lsec)
+                            flat=float(deg) + float(min)/60.0 + float(sec)/3660.0  + float(hundr)/360000.0
+                            flon=float(ldeg) + float(lmin)/60.0 +  float(lsec)/3660.0 + float(lhundr)/360000.0
+                            coordinatePairs.append(QgsPoint(flat, -flon))
+                            #print ("ll",flat,flon)
+                    except :
+                        print ("ex" , info)
+
+                    #print (numfilldata)
+                    numfilldata=int(numfilldata)
+                    numfilldata=numfilldata-len(info)
+                    if (numfilldata<=0):
+                        #lyr = self.iface.activeLayer()
+                        lyr=selectedLayer
+                        if (fillareparse):
+                            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+                            # create a feature, add the polygon to it
+                            feature = QgsFeature()
+                            feature.setGeometry(newPolygon)
+                            #feature.setAttribute('name', 'hello')
+
+                            # access the layer"s data provider, add the feature to it
+                            dataProvider = lyr.dataProvider()
+                            dataProvider.addFeatures([feature])
+
+                            # refresh map canvas to see the result
+                            #self.iface.mapCanvas().refresh()
+                            coordinatePairs = []
+                        if (polygonareparse):
+                            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+                            # create a feature, add the polygon to it
+                            feature = QgsFeature()
+                            feature.setGeometry(newPolygon)
+                            #feature.setAttribute('name', 'hello')
+
+                            # access the layer"s data provider, add the feature to it
+                            dataProvider = lyr.dataProvider()
+                            dataProvider.addFeatures([feature])
+
+                            # refresh map canvas to see the result
+                            #self.iface.mapCanvas().refresh()
+                            coordinatePairs = []
+
+                        fillareparse = False
+                        polygonareparse = False
+
+
+                if line.find("***MAP") > -1:
+                    print("Found map")
+                    #coordinatePairs.append(QgsPoint(-80.23, -3.28))
+                    #coordinatePairs.append(QgsPoint(-65.58, -4.21))
+                    #coordinatePairs.append(QgsPoint(-65.87, 9.50))
+                    #coordinatePairs.append(QgsPoint(-80.10, 10.44))
+                    # create a polygon using the above coordinates
+
+
+                if line.find("fillarea") > -1:
+                    #print("Found fillarea")
+                    fillareparse = True
+                    info = line.split()
+                    numfilldata = info[1]
+
+                if line.find("polyline") > -1:
+                    #print("Found polyline")
+                    polygonareparse = True
+                    info = line.split()
+                    numfilldata = info[1]
+
+
+
+            self.iface.mapCanvas().refresh()
+
+            #selectedLayerIndex = self.dlg.comboBox.currentIndex()
+            #selectedLayer = layers[selectedLayerIndex]
+            #fields = selectedLayer.pendingFields()
+            #fieldnames = [field.name() for field in fields]
+
+            #for f in selectedLayer.getFeatures():
+            #    line = ','.join(unicode(f[x]) for x in fieldnames) + '\n'
+            #    unicode_line = line.encode('utf-8')
+            #    output_file.write(unicode_line)
+            #output_file.close()
