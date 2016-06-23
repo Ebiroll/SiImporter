@@ -241,7 +241,7 @@ class SiImporter:
                             #print ("lon",ldeg,lmin,lsec)
                             flat=float(deg) + float(min)/60.0 + float(sec)/3660.0  + float(hundr)/360000.0
                             flon=float(ldeg) + float(lmin)/60.0 +  float(lsec)/3660.0 + float(lhundr)/360000.0
-                            coordinatePairs.append(QgsPoint(flat, -flon))
+                            coordinatePairs.append(QgsPoint(flon, flat))
                             #print ("ll",flat,flon)
                     except :
                         print ("ex" , info)
