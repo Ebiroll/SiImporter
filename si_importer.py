@@ -253,14 +253,14 @@ class SiImporter:
                 md = abs(deg - d) * 60
                 m = int(md)
                 s = int(100*(md - m) * 60)
-                line1 = u'{:0>3}{:0>2}{:0>2}N'.format(d,m,s)
+                line1 = u'{:0>3}{:0>2}{:0>4}N'.format(d,m,s)
                 #print(dd2dms(dd))
                 deg=abs(float(point.x()))
                 d = int(deg)
                 md = abs(deg - d) * 60
                 m = int(md)
                 s = int(100*(md - m) * 60)
-                line2 = u'{:0>3}{:0>2}{:0>2}E'.format(d,m,s)
+                line2 = u'{:0>3}{:0>2}{:0>4}E'.format(d,m,s)
                 line3 = u'{},{}'.format(point.x(), point.y())
                 fp.write(line1)
                 fp.write(line2)
