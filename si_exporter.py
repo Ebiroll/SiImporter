@@ -35,6 +35,14 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+def dd2dms(deg):
+    d = int(deg)
+    md = abs(deg - d) * 60
+    m = int(md)
+    sd = (md - m) * 60
+    return [d, m, sd]
+
+
 
 class SiImporter:
     """QGIS Plugin Implementation."""
@@ -236,36 +244,34 @@ class SiImporter:
 
 
             #defaultPOI = unicode(defaultPOI).replace(u'"', u'""')
+            even = 1
 
             for f in selectedLayer.getFeatures(  ):
                 point = self.transform4326.transform(f.geometry().asPoint())
                 #point = f.geometry().asPoint()
-                dd=abs(float(point.y()))
-                dd1 = abs(float(dd))  
-                cdeg = int(dd1)  
-                minsec = dd1 - cdeg  
-                cmin = int(minsec * 60)  
-                csec = (minsec % 60) / float(3600.0)      
-                d = int(cdeg)
-                m = int(cmin)
-                s = int(csec*100000)
-                line1 = u'{:0>2} {:0>2} {:0>2} N'.format(d,m,s)
-                dd=abs(float(point.x()))
-                dd1 = abs(float(dd))  
-                cdeg = int(dd1)  
-                minsec = dd1 - cdeg  
-                cmin = int(minsec * 60)  
-                csec = (minsec % 60) / float(3600.0)      
-                d = int(cdeg)
-                m = int(cmin)
-                s = int(csec*100000)
-                line2 = u'{:0>2} {:0>2} {:0>2}E'.format(d,m,s)
+                deg=abs(float(point.y()))
+                d = int(deg)
+                md = abs(deg - d) * 60
+                m = int(md)
+                s = int(100*(md - m) * 60)
+                line1 = u'{:0>2}{:0>2}{:0>4}N'.format(d,m,s)
+                #print(dd2dms(dd))
+                deg=abs(float(point.x()))
+                d = int(deg)
+                md = abs(deg - d) * 60
+                m = int(md)
+                s = int(100*(md - m) * 60)
+                line2 = u'{:0>3}{:0>2}{:0>4}E'.format(d,m,s)
                 line3 = u'{},{}'.format(point.x(), point.y())
-                #fp.write(line1)
-                #fp.write(line2)
+                fp.write(line1)
+                fp.write(line2)
                 #fp.write(' ')
-                fp.write(line3)
-                fp.write('\n')
+                #fp.write(line3)
+                if even%2 ==0:
+                        fp.write('\n')
+                else:
+                        fp.write(' ')
+                even = even + 1
             fp.close()
 
             self.iface.mapCanvas().refresh()
