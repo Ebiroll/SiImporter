@@ -244,6 +244,7 @@ class SiImporter:
 
 
             #defaultPOI = unicode(defaultPOI).replace(u'"', u'""')
+            even = 1
 
             for f in selectedLayer.getFeatures(  ):
                 point = self.transform4326.transform(f.geometry().asPoint())
@@ -253,7 +254,7 @@ class SiImporter:
                 md = abs(deg - d) * 60
                 m = int(md)
                 s = int(100*(md - m) * 60)
-                line1 = u'{:0>3}{:0>2}{:0>4}N'.format(d,m,s)
+                line1 = u'{:0>2}{:0>2}{:0>4}N'.format(d,m,s)
                 #print(dd2dms(dd))
                 deg=abs(float(point.x()))
                 d = int(deg)
@@ -266,7 +267,11 @@ class SiImporter:
                 fp.write(line2)
                 #fp.write(' ')
                 #fp.write(line3)
-                fp.write('\n')
+                if even%2 ==0:
+                        fp.write('\n')
+                else:
+                        fp.write(' ')
+                even = even + 1
             fp.close()
 
             self.iface.mapCanvas().refresh()
