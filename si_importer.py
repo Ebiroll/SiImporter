@@ -190,7 +190,7 @@ class SiImporter:
 
 
     def select_output_file(self):
-        filename = QFileDialog.getSaveFileName(self.dlg, "Select output file ","", '*.txt')
+        filename = QFileDialog.getSaveFileName(self.dlg, "Select output file ","", '*.xml')
         self.dlg.lineEdit.setText(filename)
 
 
