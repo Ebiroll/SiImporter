@@ -1,3 +1,11 @@
+The plugin is updated to handle the new map format.
+example is in aerodrome.xml
+
+To use, Layer, create layer, New shapefile layer, type line
+
+Then Plugins, SiImporter and then select a file.
+
+
 Plugin Builder Results
 
 Your plugin SiImporter was created in:

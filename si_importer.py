@@ -22,27 +22,17 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon, QFileDialog
+from PyQt4.QtCore import *
 
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
 from si_importer_dialog import SiImporterDialog
-from qgis.core import *
-#QgsPoint , QgsGeometry ,QgsFeature
+from qgis.core import QgsPoint , QgsGeometry ,QgsFeature
 import os.path
 import re
-import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
-def dd2dms(deg):
-    d = int(deg)
-    md = abs(deg - d) * 60
-    m = int(md)
-    sd = (md - m) * 60
-    return [d, m, sd]
-
-
+import xml.etree.ElementTree as et
+import math
 
 class SiImporter:
     """QGIS Plugin Implementation."""
@@ -85,7 +75,6 @@ class SiImporter:
 
         self.dlg.lineEdit.clear()
         self.dlg.pushButton.clicked.connect(self.select_output_file)
-        self.epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
 
 
     # noinspection PyMethodMayBeStatic
@@ -223,11 +212,62 @@ class SiImporter:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-
-
             filename = self.dlg.lineEdit.text()
-            #input_file = open(filename, 'w')
-            fp = open(filename, "w")
+            input_file = open(filename, 'r')
+
+            #parse xml
+            try:
+                data = et.ElementTree()
+                data.parse(filename)
+                root = data.getroot()
+                print(root)
+
+            except:
+                # raise
+                message = unicode(sys.exc_info()[1])
+                QMessageBox.information(self,"LandXml error","Problem importing xml\n"+message)
+        
+
+
+            selectedLayerIndex = self.dlg.comboBox.currentIndex()
+            selectedLayer = layers[selectedLayerIndex]
+            lyr=selectedLayer
+
+            dataProvider = lyr.dataProvider()
+            #dataProvider.addAttributes([QgsField("name", QVariant.String)])
+
+
+            name = "none"
+            coordinatePairs = []            
+            values = root.findall('elements/polyline')
+            for elem in values:
+                #print elem.find('coords'), elem.find('coords').text
+                all=elem.find('coords').text
+                coords = all.split()
+                for coord in coords:
+                    p = coord.strip().split(",")
+                    flon=float(p[0])
+                    flat=float(p[1])
+                    if len(p)>2:
+                        name=(p[2])
+                    coordinatePairs.append(QgsPoint(flon, flat))
+                    oldcoord=coord
+                newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+                coordinatePairs = []
+                feature = QgsFeature()
+                feature.setGeometry(newPolygon)
+                #feature.setAttribute('name', name)
+
+                # access the layer"s data provider, add the feature to it
+                # ,QgsField("age", QVariant.Int),QgsField("size", QVariant.Double)
+                dataProvider = lyr.dataProvider()
+                #dataProvider.setAttributes([name])
+                dataProvider.addFeatures([feature])
+
+
+            if False: '''
+
+            row = input_file.readlines()
 
             fillareparse = False
             polygonareparse = False
@@ -238,41 +278,89 @@ class SiImporter:
             selectedLayerIndex = self.dlg.comboBox.currentIndex()
             selectedLayer = layers[selectedLayerIndex]
 
-            #self.transform4326 = QgsCoordinateTransform(selectedLayer, self.epsg4326)
-            layerCRS = selectedLayer.crs()
-            self.transform4326 = QgsCoordinateTransform(layerCRS, self.epsg4326)
+            for line in row:
+                if (fillareparse or polygonareparse):
+                    #print(row)
+                    info = line.split()
+                    try :
+                        #first=info[0]
+                        for first in info:
+                            #print first
+                            lat, lon = first.strip().split('N') # move inside `try` just in case...
+                            #lat = float( lat )
+                            #lon = float( lon )
+                            _,deg,min,sec,hundr,_ = re.split("([0-9][0-9])([0-9][0-9])([0-9][0-9])([0-9][0-9])",lat)
+                            #print ("lat",deg,min,sec)
+                            _,ldeg,lmin,lsec,lhundr,_ = re.split("([0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])([0-9][0-9])",lon)
+                            #print ("lon",ldeg,lmin,lsec)
+                            flat=float(deg) + float(min)/60.0 + float(sec)/3660.0  + float(hundr)/360000.0
+                            flon=float(ldeg) + float(lmin)/60.0 +  float(lsec)/3660.0 + float(lhundr)/360000.0
+                            coordinatePairs.append(QgsPoint(flon, flat))
+                            #print ("ll",flat,flon)
+                    except :
+                        print ("ex" , info)
+
+                    #print (numfilldata)
+                    numfilldata=int(numfilldata)
+                    numfilldata=numfilldata-len(info)
+                    if (numfilldata<=0):
+                        #lyr = self.iface.activeLayer()
+                        lyr=selectedLayer
+                        if (fillareparse):
+                            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+                            # create a feature, add the polygon to it
+                            feature = QgsFeature()
+                            feature.setGeometry(newPolygon)
+                            #feature.setAttribute('name', 'hello')
+
+                            # access the layer"s data provider, add the feature to it
+                            dataProvider = lyr.dataProvider()
+                            dataProvider.addFeatures([feature])
+
+                            # refresh map canvas to see the result
+                            #self.iface.mapCanvas().refresh()
+                            coordinatePairs = []
+                        if (polygonareparse):
+                            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+                            # create a feature, add the polygon to it
+                            feature = QgsFeature()
+                            feature.setGeometry(newPolygon)
+                            #feature.setAttribute('name', 'hello')
+
+                            # access the layer"s data provider, add the feature to it
+                            dataProvider = lyr.dataProvider()
+                            dataProvider.addFeatures([feature])
+
+                            # refresh map canvas to see the result
+                            #self.iface.mapCanvas().refresh()
+                            coordinatePairs = []
+
+                        fillareparse = False
+                        polygonareparse = False
 
 
-            #defaultPOI = unicode(defaultPOI).replace(u'"', u'""')
-            even = 1
+                if line.find("***MAP") > -1:
+                    print("Found map")
+                    #coordinatePairs.append(QgsPoint(-80.23, -3.28))
+                    #coordinatePairs.append(QgsPoint(-65.58, -4.21))
+                    #coordinatePairs.append(QgsPoint(-65.87, 9.50))
+                    #coordinatePairs.append(QgsPoint(-80.10, 10.44))
+                    # create a polygon using the above coordinates
 
-            for f in selectedLayer.getFeatures(  ):
-                point = self.transform4326.transform(f.geometry().asPoint())
-                #point = f.geometry().asPoint()
-                deg=abs(float(point.y()))
-                d = int(deg)
-                md = abs(deg - d) * 60
-                m = int(md)
-                s = int(100*(md - m) * 60)
-                line1 = u'{:0>2}{:0>2}{:0>4}N'.format(d,m,s)
-                #print(dd2dms(dd))
-                deg=abs(float(point.x()))
-                d = int(deg)
-                md = abs(deg - d) * 60
-                m = int(md)
-                s = int(100*(md - m) * 60)
-                line2 = u'{:0>3}{:0>2}{:0>4}E'.format(d,m,s)
-                line3 = u'{},{}'.format(point.x(), point.y())
-                fp.write(line1)
-                fp.write(line2)
-                #fp.write(' ')
-                #fp.write(line3)
-                if even%2 ==0:
-                        fp.write('\n')
-                else:
-                        fp.write(' ')
-                even = even + 1
-            fp.close()
+
+                if line.find("fillarea") > -1:
+                    #print("Found fillarea")
+                    fillareparse = True
+                    info = line.split()
+                    numfilldata = info[1]
+
+                if line.find("polyline") > -1:
+                    #print("Found polyline")
+                    polygonareparse = True
+                    info = line.split()
+                    numfilldata = info[1]
+
+'''
 
             self.iface.mapCanvas().refresh()
 
