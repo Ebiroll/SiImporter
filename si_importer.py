@@ -212,13 +212,61 @@ class SiImporter:
 
         layerCRS = selectedLayer.crs()
         self.transform4326 = QgsCoordinateTransform(layerCRS, self.epsg4326)
+        fp.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+        fp.write("<map>\n")
+        fp.write("<elements count=\"")
+        count=selectedLayer.getFeatures( )
+        le=0
+        for fe in count:
+                le += 1
+        fp.write(str(le))
+        fp.write("\">\n")
         for f in selectedLayer.getFeatures(  ):
-            print f
             #point = self.transform4326.transform(f.geometry().asPoint())
+            # fetch geometry
+            geom = f.geometry()
+            print geom
+            print "---"
 
+            if geom.type() == QGis.Point:
+                x = geom.asPoint()
+                print "Point: " + str(x)
+            elif geom.type() == QGis.Line:
+                fp.write("<polyline color=\"3\" linetype=\"0\" linesize=\"2\">\n")
+                fp.write("<coords type=\"decimal\">\n")
 
+                x = geom.asPolyline()
+                print "Line: %d points" % len(x)
+                i = 0
+                for pt in x:
+                        s=pt.toString()
+                        #print "pt", pt,s
+                        #point=s[s.find("(")+1:s.find(")")]
+                        #point=s.trim()
+                        i += 1
+                        #Last point == firts point, we dont want that
+                        if i<len(x):
+                            point = re.sub(r"\s+", "", s, flags=re.UNICODE)
+                            fp.write(point)
+                            fp.write("\n")
+                fp.write("</coords>\n")
+                fp.write("</polyline>\n")
 
+            elif geom.type() == QGis.Polygon:
+                x = geom.asPolygon()
+                first_poly = geom.asPolygon()
+                print first_poly
+                numPts = 0
+                for ring in x:
+                    numPts += len(ring)
+                    print ring
+                print "Polygon: %d rings with %d points" % (len(x), numPts)
+            else:
+                print "Unknown"
+        fp.write("</elements>\n")
+        fp.write("</map>\n")
 
+         
     def import_xml(self):
         layers = self.iface.legendInterface().layers()
         print ("Importing")
