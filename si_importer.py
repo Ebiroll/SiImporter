@@ -28,11 +28,17 @@ from PyQt4.QtCore import *
 import resources
 # Import the code for the dialog
 from si_importer_dialog import SiImporterDialog
+from qgis.core import *
+
 from qgis.core import QgsPoint , QgsGeometry ,QgsFeature
 import os.path
 import re
 import xml.etree.ElementTree as et
 import math
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
 
 class SiImporter:
     """QGIS Plugin Implementation."""
@@ -75,6 +81,7 @@ class SiImporter:
 
         self.dlg.lineEdit.clear()
         self.dlg.pushButton.clicked.connect(self.select_output_file)
+        self.epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
 
 
     # noinspection PyMethodMayBeStatic
@@ -193,6 +200,82 @@ class SiImporter:
         filename = QFileDialog.getSaveFileName(self.dlg, "Select output file ","", '*.xml')
         self.dlg.lineEdit.setText(filename)
 
+    def export_xml(self):
+        layers = self.iface.legendInterface().layers()
+        print ("Exporting")
+        filename = self.dlg.lineEdit.text()
+        #input_file = open(filename, 'w')
+        fp = open(filename, "w")
+        selectedLayerIndex = self.dlg.comboBox.currentIndex()
+        selectedLayer = layers[selectedLayerIndex]
+
+
+        layerCRS = selectedLayer.crs()
+        self.transform4326 = QgsCoordinateTransform(layerCRS, self.epsg4326)
+        for f in selectedLayer.getFeatures(  ):
+            print f
+            #point = self.transform4326.transform(f.geometry().asPoint())
+
+
+
+
+    def import_xml(self):
+        layers = self.iface.legendInterface().layers()
+        print ("Importing")
+        filename = self.dlg.lineEdit.text()
+        input_file = open(filename, 'r')
+
+        #parse xml
+        try:
+            data = et.ElementTree()
+            data.parse(filename)
+            root = data.getroot()
+            print(root)
+
+        except:
+            # raise
+            message = unicode(sys.exc_info()[1])
+            QMessageBox.information(self,"LandXml error","Problem importing xml\n"+message)
+    
+
+
+        selectedLayerIndex = self.dlg.comboBox.currentIndex()
+        selectedLayer = layers[selectedLayerIndex]
+        lyr=selectedLayer
+
+        dataProvider = lyr.dataProvider()
+        dataProvider.addAttributes([QgsField("name", QVariant.String)])
+
+
+        name = "none"
+        coordinatePairs = []            
+        values = root.findall('elements/polyline')
+        for elem in values:
+            #print elem.find('coords'), elem.find('coords').text
+            all=elem.find('coords').text
+            coords = all.split()
+            for coord in coords:
+                p = coord.strip().split(",")
+                flon=float(p[0])
+                flat=float(p[1])
+                if len(p)>2:
+                    name=(p[2])
+                coordinatePairs.append(QgsPoint(flon, flat))
+                oldcoord=coord
+            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+            coordinatePairs = []
+            feature = QgsFeature()
+            feature.setGeometry(newPolygon)
+            #feature.setAttribute('name', name)
+
+            # access the layer"s data provider, add the feature to it
+            # ,QgsField("age", QVariant.Int),QgsField("size", QVariant.Double)
+            dataProvider = lyr.dataProvider()
+            #dataProvider.setAttributes([name])
+            dataProvider.addFeatures([feature])
+
+
+
 
     def run(self):
         """Run method that performs all the real work"""
@@ -203,66 +286,17 @@ class SiImporter:
             layer_list.append(layer.name())
             self.dlg.comboBox.addItems(layer_list)
 
-
-
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            filename = self.dlg.lineEdit.text()
-            input_file = open(filename, 'r')
-
-            #parse xml
-            try:
-                data = et.ElementTree()
-                data.parse(filename)
-                root = data.getroot()
-                print(root)
-
-            except:
-                # raise
-                message = unicode(sys.exc_info()[1])
-                QMessageBox.information(self,"LandXml error","Problem importing xml\n"+message)
-        
+            if self.dlg.export_xml.isChecked():
+                self.export_xml()
+            else:
+                self.import_xml()
 
 
-            selectedLayerIndex = self.dlg.comboBox.currentIndex()
-            selectedLayer = layers[selectedLayerIndex]
-            lyr=selectedLayer
-
-            dataProvider = lyr.dataProvider()
-            #dataProvider.addAttributes([QgsField("name", QVariant.String)])
-
-
-            name = "none"
-            coordinatePairs = []            
-            values = root.findall('elements/polyline')
-            for elem in values:
-                #print elem.find('coords'), elem.find('coords').text
-                all=elem.find('coords').text
-                coords = all.split()
-                for coord in coords:
-                    p = coord.strip().split(",")
-                    flon=float(p[0])
-                    flat=float(p[1])
-                    if len(p)>2:
-                        name=(p[2])
-                    coordinatePairs.append(QgsPoint(flon, flat))
-                    oldcoord=coord
-                newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
-                coordinatePairs = []
-                feature = QgsFeature()
-                feature.setGeometry(newPolygon)
-                #feature.setAttribute('name', name)
-
-                # access the layer"s data provider, add the feature to it
-                # ,QgsField("age", QVariant.Int),QgsField("size", QVariant.Double)
-                dataProvider = lyr.dataProvider()
-                #dataProvider.setAttributes([name])
-                dataProvider.addFeatures([feature])
 
 
             if False: '''
