@@ -232,7 +232,7 @@ class SiImporter:
                 x = geom.asPoint()
                 print "Point: " + str(x)
             elif geom.type() == QGis.Line:
-                fp.write("<polyline color=\"3\" linetype=\"0\" linesize=\"2\">\n")
+                fp.write("<polyline color=\"3\" linetype=\"0\" linesize=\"1\">\n")
                 fp.write("<coords type=\"decimal\">\n")
 
                 x = geom.asPolyline()
@@ -262,7 +262,7 @@ class SiImporter:
                 for ring in x:
                     numPts += len(ring)
                     print ring
-                    fp.write("<polyline color=\"3\" linetype=\"0\" linesize=\"2\">\n")
+                    fp.write("<fillarea color=\"3\" linetype=\"0\" filltype=\"0\" linesize=\"1\">\n")
                     fp.write("<coords type=\"decimal\">\n")                    
                     for pt in ring:
                         trans=self.transform4326.transform(pt)
@@ -271,7 +271,7 @@ class SiImporter:
                         fp.write(point)
                         fp.write("\n")
                     fp.write("</coords>\n")
-                    fp.write("</polyline>\n")
+                    fp.write("</fillarea>\n")
 
                 print "Polygon: %d rings with %d points" % (len(x), numPts)
 
