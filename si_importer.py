@@ -335,7 +335,42 @@ class SiImporter:
             dataProvider = lyr.dataProvider()
             #dataProvider.setAttributes([name])
             dataProvider.addFeatures([feature])
+        coordinatePairs = []  
+        #coordinatePairsList = []  
+        index=0
+        
+        areas = root.findall('elements/fillarea')
+        for elem in areas:
+            nlayer_name="poly" + str(index)
+            index+=1
+            nlayer =  QgsVectorLayer('Polygon?crs=epsg:4326', nlayer_name , "memory")
+            pr = nlayer.dataProvider() 
+            #print elem.find('coords'), elem.find('coords').text
+            all=elem.find('coords').text
+            coords = all.split()
+            for coord in coords:
+                p = coord.strip().split(",")
+                flon=float(p[0])
+                flat=float(p[1])
+                if len(p)>2:
+                    name=(p[2])
+                coordinatePairs.append(QgsPoint(flon, flat))
+                oldcoord=coord
+            newPolygon = QgsGeometry.fromPolygon([coordinatePairs])
+            coordinatePairs = []
+            feature = QgsFeature()
+            feature.setGeometry(newPolygon)
+            #feature.setAttribute('name', name)
 
+            # access the layer"s data provider, add the feature to it
+            # ,QgsField("age", QVariant.Int),QgsField("size", QVariant.Double)
+            dataProvider = lyr.dataProvider()
+            #dataProvider.setAttributes([name])
+            dataProvider.addFeatures([feature])
+            pr.addFeatures([feature])
+            nlayer.updateExtents()
+            QgsMapLayerRegistry.instance().addMapLayers([nlayer])
+        
 
 
 
