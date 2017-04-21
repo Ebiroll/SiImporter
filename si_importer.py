@@ -239,7 +239,8 @@ class SiImporter:
                 print "Line: %d points" % len(x)
                 i = 0
                 for pt in x:
-                        s=pt.toString()
+                        trans=self.transform4326.transform(pt)
+                        s=trans.toString()
                         #print "pt", pt,s
                         #point=s[s.find("(")+1:s.find(")")]
                         #point=s.trim()
@@ -253,6 +254,7 @@ class SiImporter:
                 fp.write("</polyline>\n")
 
             elif geom.type() == QGis.Polygon:
+
                 x = geom.asPolygon()
                 first_poly = geom.asPolygon()
                 print first_poly
@@ -260,7 +262,19 @@ class SiImporter:
                 for ring in x:
                     numPts += len(ring)
                     print ring
+                    fp.write("<polyline color=\"3\" linetype=\"0\" linesize=\"2\">\n")
+                    fp.write("<coords type=\"decimal\">\n")                    
+                    for pt in ring:
+                        trans=self.transform4326.transform(pt)
+                        s=trans.toString()
+                        point = re.sub(r"\s+", "", s, flags=re.UNICODE)
+                        fp.write(point)
+                        fp.write("\n")
+                    fp.write("</coords>\n")
+                    fp.write("</polyline>\n")
+
                 print "Polygon: %d rings with %d points" % (len(x), numPts)
+
             else:
                 print "Unknown"
         fp.write("</elements>\n")
